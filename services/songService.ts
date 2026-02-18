@@ -1,28 +1,7 @@
 import { Song } from '../types';
 
-// Helper to get environment variables safely
-const getEnv = (key: string): string => {
-  // 1. Try process.env (Polyfilled by Vite config)
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env[key]) {
-      return process.env[key];
-    }
-  } catch (e) {}
-
-  // 2. Try import.meta.env (Vite native)
-  try {
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-      // @ts-ignore
-      return import.meta.env[key];
-    }
-  } catch (e) {}
-  
-  return '';
-};
-
-const CLIENT_ID = getEnv('VITE_SPOTIFY_CLIENT_ID');
-const CLIENT_SECRET = getEnv('VITE_SPOTIFY_CLIENT_SECRET');
+const CLIENT_ID = process.env.VITE_SPOTIFY_CLIENT_ID;
+const CLIENT_SECRET = process.env.VITE_SPOTIFY_CLIENT_SECRET;
 
 // Token caching
 let accessToken: string | null = null;

@@ -14,6 +14,8 @@ export default defineConfig(({ mode }) => {
       'process.env.API_KEY': JSON.stringify(env.VITE_GOOGLE_API_KEY),
       'process.env.VITE_SPOTIFY_CLIENT_ID': JSON.stringify(env.VITE_SPOTIFY_CLIENT_ID),
       'process.env.VITE_SPOTIFY_CLIENT_SECRET': JSON.stringify(env.VITE_SPOTIFY_CLIENT_SECRET),
+      'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
+      'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
     },
   };
 });
