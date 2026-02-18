@@ -109,12 +109,19 @@ export const getRoomData = async (roomId: string): Promise<RoomData> => {
       return { roomId, roomName, entries: [] };
     }
 
+    // Helper to map DB JSON to Song object with backward compatibility
+    const mapSong = (s: any): Song => ({
+      title: s.title || 'Unknown',
+      artist: s.artist || 'Unknown',
+      externalUrl: s.externalUrl || s.spotifyUrl || '' // Handle both new and old data keys
+    });
+
     // Map Supabase rows to our app's SongEntry type
     const entries: SongEntry[] = (data || []).map((row: any) => ({
       id: row.id,
-      current: row.current_song,
-      favorite: row.favorite_song,
-      underrated: row.underrated_song,
+      current: mapSong(row.current_song),
+      favorite: mapSong(row.favorite_song),
+      underrated: mapSong(row.underrated_song),
       userId: row.user_id,
       timestamp: new Date(row.created_at).getTime()
     }));

@@ -1,7 +1,7 @@
 export interface Song {
   title: string;
   artist: string;
-  spotifyUrl: string;
+  externalUrl: string;
 }
 
 export interface SongEntry {
@@ -29,7 +29,7 @@ export interface RecommendedTrack {
   title: string;
   artist: string;
   reason: string;
-  spotifyUrl: string;
+  externalUrl: string;
 }
 
 export interface RoomVibe {

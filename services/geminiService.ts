@@ -16,8 +16,8 @@ export const resolveSongMetadata = async (
     model: 'gemini-3-flash-preview',
     contents: `
       Identify the following songs and return them in a structured JSON format.
-      For each song, provide the correct Title, Artist, and a Spotify URL.
-      If you cannot find the exact Spotify URL, provide a Spotify Search URL (e.g. https://open.spotify.com/search/Title%20Artist).
+      For each song, provide the correct Title, Artist, and a link to Apple Music or a generic search link.
+      Use the key 'externalUrl' for the link.
 
       1. Current Song: "${formatInput(rawCurrent)}"
       2. Favorite Song: "${formatInput(rawFavorite)}"
@@ -33,27 +33,27 @@ export const resolveSongMetadata = async (
             properties: {
               title: { type: Type.STRING },
               artist: { type: Type.STRING },
-              spotifyUrl: { type: Type.STRING },
+              externalUrl: { type: Type.STRING },
             },
-            required: ['title', 'artist', 'spotifyUrl'],
+            required: ['title', 'artist', 'externalUrl'],
           },
           favorite: {
             type: Type.OBJECT,
             properties: {
               title: { type: Type.STRING },
               artist: { type: Type.STRING },
-              spotifyUrl: { type: Type.STRING },
+              externalUrl: { type: Type.STRING },
             },
-            required: ['title', 'artist', 'spotifyUrl'],
+            required: ['title', 'artist', 'externalUrl'],
           },
           underrated: {
             type: Type.OBJECT,
             properties: {
               title: { type: Type.STRING },
               artist: { type: Type.STRING },
-              spotifyUrl: { type: Type.STRING },
+              externalUrl: { type: Type.STRING },
             },
-            required: ['title', 'artist', 'spotifyUrl'],
+            required: ['title', 'artist', 'externalUrl'],
           },
         },
         required: ['current', 'favorite', 'underrated'],
@@ -94,7 +94,7 @@ export const generateRoomVibe = async (entries: SongEntry[]): Promise<RoomVibe> 
 
       Determine a creative "Vibe Name" and a short description.
       Recommend 5 songs that fit this vibe.
-      For each recommendation, explain the reason and provide a Spotify URL (or search URL).
+      For each recommendation, explain the reason and provide an Apple Music or generic music URL (key: 'externalUrl').
     `,
     config: {
       responseMimeType: 'application/json',
@@ -111,9 +111,9 @@ export const generateRoomVibe = async (entries: SongEntry[]): Promise<RoomVibe> 
                 title: { type: Type.STRING },
                 artist: { type: Type.STRING },
                 reason: { type: Type.STRING },
-                spotifyUrl: { type: Type.STRING },
+                externalUrl: { type: Type.STRING },
               },
-              required: ['title', 'artist', 'reason', 'spotifyUrl'],
+              required: ['title', 'artist', 'reason', 'externalUrl'],
             },
           },
         },
