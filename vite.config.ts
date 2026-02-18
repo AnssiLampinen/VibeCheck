@@ -1,10 +1,15 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  // IMPORTANT: This ensures assets use relative paths (e.g., "./assets/...")
-  // allowing the app to run in a subdirectory like mywebsite.com/vibecheck
-  base: './',
+export default defineConfig(({ mode }) => {
+  // Load env file based on `mode` in the current working directory.
+  const env = loadEnv(mode, process.cwd(), '');
+  return {
+    plugins: [react()],
+    base: './',
+    define: {
+      'process.env': env
+    }
+  };
 });
