@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Song } from '../types';
 import { AutocompleteInput } from './AutocompleteInput';
-import { resolveSongMetadata } from '../services/geminiService';
 
 interface SongFormProps {
   onSubmit: (data: { current: Song; favorite: Song; underrated: Song }) => void;
@@ -15,16 +14,17 @@ export const SongForm: React.FC<SongFormProps> = ({ onSubmit, roomId, roomName }
   const [favorite, setFavorite] = useState<Song | string>('');
   const [underrated, setUnderrated] = useState<Song | string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('Processing...');
 
-  // Helper to convert raw input into a valid Song object (Fallback)
-  const processInputFallback = (input: Song | string): Song => {
+  // Helper to convert raw input into a valid Song object
+  const processInput = (input: Song | string): Song => {
     if (typeof input === 'object') {
       return input;
     }
+    // If user typed manually without selecting a suggestion
     return {
       title: input,
       artist: 'Unknown Artist',
+      // Create a generic search URL since we don't have a specific link
       spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(input)}`
     };
   };
@@ -36,24 +36,18 @@ export const SongForm: React.FC<SongFormProps> = ({ onSubmit, roomId, roomName }
 
     if (hasValue(current) && hasValue(favorite) && hasValue(underrated) && !isSubmitting) {
       setIsSubmitting(true);
-      setStatusMessage('Consulting the oracle...');
       
-      try {
-        // Attempt to use AI to resolve exact metadata and spotify links
-        const metadata = await resolveSongMetadata(current, favorite, underrated);
-        onSubmit(metadata);
-      } catch (error) {
-        console.error("AI Resolution failed, falling back to local processing", error);
-        // Fallback to local processing if AI fails
-        const entryData = {
-          current: processInputFallback(current),
-          favorite: processInputFallback(favorite),
-          underrated: processInputFallback(underrated)
-        };
-        onSubmit(entryData);
-      } finally {
-        setIsSubmitting(false);
-      }
+      // Artificial delay for better UX feeling
+      await new Promise(r => setTimeout(r, 600));
+
+      const entryData = {
+        current: processInput(current),
+        favorite: processInput(favorite),
+        underrated: processInput(underrated)
+      };
+
+      onSubmit(entryData);
+      setIsSubmitting(false);
     }
   };
 
@@ -103,7 +97,7 @@ export const SongForm: React.FC<SongFormProps> = ({ onSubmit, roomId, roomName }
           {isSubmitting ? (
             <>
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              <span>{statusMessage}</span>
+              <span>Processing...</span>
             </>
           ) : (
             <span>Contribute & Check Vibe</span>

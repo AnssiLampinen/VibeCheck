@@ -1,27 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { RoomVibe, SongEntry, Song } from "../types";
 
-// Helper to get environment variables safely
-const getEnv = (key: string): string => {
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-    // @ts-ignore
-    return import.meta.env[key];
-  }
-  return '';
-};
-
-// Lazy initialization function - prevents crash on app load
-const getAiClient = () => {
-  const apiKey = getEnv('VITE_GOOGLE_API_KEY');
-  
-  if (!apiKey) {
-    console.error("Missing VITE_GOOGLE_API_KEY. AI features will not work.");
-    throw new Error("API Key missing");
-  }
-
-  return new GoogleGenAI({ apiKey: apiKey });
-};
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const resolveSongMetadata = async (
   rawCurrent: Song | string, 
@@ -29,7 +9,6 @@ export const resolveSongMetadata = async (
   rawUnderrated: Song | string
 ): Promise<{ current: Song; favorite: Song; underrated: Song }> => {
   
-  const ai = getAiClient();
   const formatInput = (input: Song | string) => 
     typeof input === 'string' ? input : `${input.title} by ${input.artist}`;
 
@@ -101,7 +80,6 @@ export const generateRoomVibe = async (entries: SongEntry[]): Promise<RoomVibe> 
     };
   }
 
-  const ai = getAiClient();
   const songsList = entries.flatMap(e => [
     `${e.current.title} - ${e.current.artist}`,
     `${e.favorite.title} - ${e.favorite.artist}`,

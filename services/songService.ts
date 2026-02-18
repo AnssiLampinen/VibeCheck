@@ -2,30 +2,36 @@ import { Song } from '../types';
 
 // Helper to get environment variables safely
 const getEnv = (key: string): string => {
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      return process.env[key];
+    }
+  } catch (e) {}
+  try {
     // @ts-ignore
-    return import.meta.env[key];
-  }
-  // @ts-ignore
-  return typeof process !== 'undefined' && process.env ? process.env[key] : '';
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+      // @ts-ignore
+      return import.meta.env[key];
+    }
+  } catch (e) {}
+  return '';
 };
 
-let spotifyAccessToken: string | null = null;
-let tokenExpiry: number = 0;
+const CLIENT_ID = getEnv('SPOTIFY_CLIENT_ID') || getEnv('VITE_SPOTIFY_CLIENT_ID') || ''; 
+const CLIENT_SECRET = getEnv('SPOTIFY_CLIENT_SECRET') || getEnv('VITE_SPOTIFY_CLIENT_SECRET') || '';
 
-const getSpotifyToken = async (): Promise<string | null> => {
-  const clientId = getEnv('VITE_SPOTIFY_CLIENT_ID');
-  const clientSecret = getEnv('VITE_SPOTIFY_CLIENT_SECRET');
+// Token caching
+let accessToken: string | null = null;
+let tokenExpiration: number = 0;
 
-  if (!clientId || !clientSecret) {
-    console.warn("Spotify credentials (VITE_SPOTIFY_CLIENT_ID/SECRET) are missing.");
-    return null;
+const getAccessToken = async (): Promise<string | null> => {
+  if (accessToken && Date.now() < tokenExpiration - 60000) {
+    return accessToken;
   }
 
-  // Return cached token if still valid (minus 60s buffer)
-  if (spotifyAccessToken && Date.now() < tokenExpiry - 60000) {
-    return spotifyAccessToken;
+  if (!CLIENT_ID || !CLIENT_SECRET) {
+    console.warn("Spotify credentials (VITE_SPOTIFY_CLIENT_ID, VITE_SPOTIFY_CLIENT_SECRET) are missing.");
+    return null;
   }
 
   try {
@@ -33,22 +39,24 @@ const getSpotifyToken = async (): Promise<string | null> => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`)
       },
-      body: 'grant_type=client_credentials'
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+      }),
     });
 
     if (!response.ok) {
-      console.error("Failed to fetch Spotify token:", response.statusText);
-      return null;
+      throw new Error(`Spotify Token Error: ${response.statusText}`);
     }
 
     const data = await response.json();
-    spotifyAccessToken = data.access_token;
-    tokenExpiry = Date.now() + (data.expires_in * 1000);
-    return spotifyAccessToken;
+    accessToken = data.access_token;
+    tokenExpiration = Date.now() + (data.expires_in * 1000);
+    return accessToken;
   } catch (error) {
-    console.error("Error authenticating with Spotify:", error);
+    console.error("Failed to get Spotify access token:", error);
     return null;
   }
 };
@@ -56,36 +64,35 @@ const getSpotifyToken = async (): Promise<string | null> => {
 export const searchSongs = async (query: string): Promise<Song[]> => {
   if (!query || query.length < 2) return [];
 
-  const token = await getSpotifyToken();
-  
-  // If no token (credentials missing or auth failed), return empty array
-  // This prevents the app from breaking if keys aren't set
-  if (!token) {
-    return [];
-  }
+  const token = await getAccessToken();
+  if (!token) return [];
 
   try {
     const response = await fetch(
       `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`,
       {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       }
     );
-
-    if (!response.ok) return [];
+    
+    if (!response.ok) {
+      throw new Error("Spotify API response not ok");
+    }
 
     const data = await response.json();
     
-    return data.tracks.items.map((track: any) => ({
-      title: track.name,
-      artist: track.artists.map((a: any) => a.name).join(', '),
-      spotifyUrl: track.external_urls.spotify
-    }));
-
+    if (data.tracks && data.tracks.items) {
+      return data.tracks.items.map((track: any) => ({
+        title: track.name,
+        artist: track.artists.map((a: any) => a.name).join(', '),
+        spotifyUrl: track.external_urls.spotify 
+      }));
+    }
+    return [];
   } catch (e) {
-    console.warn("Spotify search failed", e);
+    console.error("Spotify Search API failed", e);
     return [];
   }
 };

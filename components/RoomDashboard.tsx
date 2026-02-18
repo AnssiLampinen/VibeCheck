@@ -1,6 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { RoomData, Song, RoomVibe } from '../types';
-import { generateRoomVibe } from '../services/geminiService';
+import React, { useMemo, useState } from 'react';
+import { RoomData, Song } from '../types';
 
 interface RoomDashboardProps {
   roomData: RoomData;
@@ -24,39 +23,40 @@ const SpotifyLink: React.FC<{ url: string }> = ({ url }) => (
 
 export const RoomDashboard: React.FC<RoomDashboardProps> = ({ roomData, onRefresh, onAddEntry }) => {
   const [showQr, setShowQr] = useState(false);
-  const [aiVibe, setAiVibe] = useState<RoomVibe | null>(null);
-  const [loadingVibe, setLoadingVibe] = useState(false);
 
-  // Determine if we have previous entries
+  // The previous user is at index 1 (index 0 is current user) assuming sorted by new
+  // Note: roomData.entries is sorted by created_at desc in storageService
   const previousEntry = roomData.entries.length > 1 ? roomData.entries[1] : null;
+
+  // Calculate most frequent songs locally without AI
+  const playlist = useMemo(() => {
+    const allSongs = roomData.entries.flatMap(e => [e.current, e.favorite, e.underrated]);
+    const counts = new Map<string, { count: number, song: Song }>();
+
+    allSongs.forEach(song => {
+      // Create a composite key to group identical songs
+      const key = `${song.title.toLowerCase().trim()}|${song.artist.toLowerCase().trim()}`;
+      if (!counts.has(key)) {
+        counts.set(key, { count: 0, song });
+      }
+      counts.get(key)!.count++;
+    });
+
+    // Sort by frequency (desc) then by title
+    return Array.from(counts.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3) // Limit to top 3 songs
+      .map(item => ({
+        title: item.song.title,
+        artist: item.song.artist,
+        spotifyUrl: item.song.spotifyUrl,
+        reason: `${item.count} listener${item.count > 1 ? 's' : ''}`
+      }));
+  }, [roomData.entries]);
 
   // Determine room statistics
   const totalEntries = roomData.entries.length;
   const uniqueSongs = new Set(roomData.entries.flatMap(e => [e.current.title, e.favorite.title, e.underrated.title])).size;
-
-  // Fetch AI Vibe when room data changes
-  useEffect(() => {
-    let isMounted = true;
-    const fetchVibe = async () => {
-      if (roomData.entries.length > 0) {
-        setLoadingVibe(true);
-        try {
-          const vibe = await generateRoomVibe(roomData.entries);
-          if (isMounted) setAiVibe(vibe);
-        } catch (error) {
-          console.error("Failed to generate vibe", error);
-        } finally {
-          if (isMounted) setLoadingVibe(false);
-        }
-      }
-    };
-    
-    // Simple debounce/check to avoid refetching if data is same? 
-    // For now, we fetch on every mount or entries update.
-    fetchVibe();
-
-    return () => { isMounted = false; };
-  }, [roomData.entries]);
 
   // Generate current page URL for QR
   const currentUrl = window.location.href;
@@ -146,30 +146,25 @@ export const RoomDashboard: React.FC<RoomDashboardProps> = ({ roomData, onRefres
         </div>
 
         {/* Room Playlist Card */}
-        <div className="bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30 p-6 rounded-2xl relative min-h-[300px]">
+        <div className="bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30 p-6 rounded-2xl relative">
           <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-            Collective Vibe
+            Collective Playlist
           </h3>
 
-          {loadingVibe ? (
-             <div className="flex flex-col items-center justify-center h-48 space-y-4">
-                <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-indigo-300 text-sm animate-pulse">AI is listening to the room...</p>
-             </div>
-          ) : aiVibe ? (
-            <div className="animate-in slide-in-from-bottom-4 duration-500">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-indigo-300">
-                  {aiVibe.vibeName}
-                </h2>
-                <p className="text-sm text-indigo-200 mt-1 leading-relaxed">
-                  {aiVibe.description}
-                </p>
-              </div>
+          <div className="animate-in slide-in-from-bottom-4 duration-500">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-indigo-300">
+                Top {playlist.length} Tracks
+              </h2>
+              <p className="text-sm text-indigo-200 mt-1 leading-relaxed">
+                Generated from {uniqueSongs} unique songs submitted by the room.
+              </p>
+            </div>
 
+            {playlist.length > 0 ? (
               <div className="space-y-3">
-                {aiVibe.playlist.map((track, idx) => (
+                {playlist.map((track, idx) => (
                   <div key={idx} className="flex items-start gap-3 p-2 hover:bg-white/5 rounded-lg transition-colors group">
                      <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-slate-800 rounded-full text-xs font-mono text-slate-400 border border-slate-700">
                        {idx + 1}
@@ -191,12 +186,12 @@ export const RoomDashboard: React.FC<RoomDashboardProps> = ({ roomData, onRefres
                   </div>
                 ))}
               </div>
-            </div>
-          ) : (
-             <div className="h-40 flex items-center justify-center text-slate-400 italic text-sm">
-                Add music to generate the room's vibe.
-             </div>
-          )}
+            ) : (
+              <div className="text-slate-400 italic text-sm">
+                Not enough data yet. Add more songs to build the playlist!
+              </div>
+            )}
+          </div>
         </div>
 
       </div>

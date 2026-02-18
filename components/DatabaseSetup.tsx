@@ -40,12 +40,11 @@ create policy "Enable insert access for all users" on rooms for insert with chec
 create policy "Enable read access for all users" on entries for select using (true);
 create policy "Enable insert access for all users" on entries for insert with check (true);
 
--- SEED DATA: Manually create your rooms here
--- You can run this line multiple times with different names to create more rooms.
--- Since 'id' is an identity column, it will auto-increment (1, 2, 3...)
-insert into rooms (name) values ('The Main Stage');
-insert into rooms (name) values ('The Chill Lounge');
-`;
+-- Insert default room #1
+insert into rooms (id, name)
+overriding system value
+values (1, 'The Main Stage')
+on conflict (id) do nothing;`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(sqlCode);
@@ -64,7 +63,7 @@ insert into rooms (name) values ('The Chill Lounge');
             Database Setup Required
           </h2>
           <p className="text-slate-400 mt-2 text-sm">
-            The application is connected to Supabase, but the required tables were not found.
+            The application is connected to Supabase, but the required tables were not found or have the wrong schema.
           </p>
         </div>
 

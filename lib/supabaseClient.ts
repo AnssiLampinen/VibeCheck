@@ -1,30 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 
-// ------------------------------------------------------------------
-// CONFIGURATION
-// Keys must be set in your .env file or deployment environment variables.
-// VITE_SUPABASE_URL=...
-// VITE_SUPABASE_ANON_KEY=...
-// ------------------------------------------------------------------
+// Declare process to prevent TypeScript errors if Node types are missing
+declare var process: any;
 
 const getEnv = (key: string): string => {
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-    // @ts-ignore
-    return import.meta.env[key];
+  // 1. Try process.env (Common in Node/Webpack/Polyfilled environments)
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      return process.env[key];
+    }
+  } catch (e) {
+    // Ignore access errors
   }
+
+  // 2. Try import.meta.env (Common in Vite/ESM environments)
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+      // @ts-ignore
+      return import.meta.env[key];
+    }
+  } catch (e) {
+    // Ignore access errors
+  }
+
   return '';
 };
 
-// Use environment variables
 const supabaseUrl = getEnv('VITE_SUPABASE_URL');
 const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("Supabase credentials missing. Please check your .env file.");
+  console.warn("Supabase credentials missing. Please check your environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).");
 }
 
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder'
-);
+// Fallback to empty strings to prevent crash on initialization, but requests will fail if keys are missing
+export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseAnonKey || 'placeholder');
