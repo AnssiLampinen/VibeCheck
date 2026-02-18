@@ -59,7 +59,7 @@ export const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
       return;
     }
 
-    // Faster debounce for local data (200ms)
+    // Debounce set to 400ms to allow typing to finish before hitting the API
     const timer = setTimeout(async () => {
       setIsLoading(true);
       const results = await searchSongs(inputValue);
@@ -70,7 +70,7 @@ export const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
       } else {
         setShowSuggestions(false);
       }
-    }, 200);
+    }, 400);
 
     return () => clearTimeout(timer);
   }, [inputValue]);
