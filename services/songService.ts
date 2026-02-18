@@ -2,11 +2,14 @@ import { Song } from '../types';
 
 // Helper to get environment variables safely
 const getEnv = (key: string): string => {
+  // 1. Try process.env (Polyfilled by Vite config)
   try {
     if (typeof process !== 'undefined' && process.env && process.env[key]) {
       return process.env[key];
     }
   } catch (e) {}
+
+  // 2. Try import.meta.env (Vite native)
   try {
     // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
@@ -14,11 +17,12 @@ const getEnv = (key: string): string => {
       return import.meta.env[key];
     }
   } catch (e) {}
+  
   return '';
 };
 
-const CLIENT_ID = getEnv('SPOTIFY_CLIENT_ID') || getEnv('VITE_SPOTIFY_CLIENT_ID') || ''; 
-const CLIENT_SECRET = getEnv('SPOTIFY_CLIENT_SECRET') || getEnv('VITE_SPOTIFY_CLIENT_SECRET') || '';
+const CLIENT_ID = getEnv('VITE_SPOTIFY_CLIENT_ID');
+const CLIENT_SECRET = getEnv('VITE_SPOTIFY_CLIENT_SECRET');
 
 // Token caching
 let accessToken: string | null = null;
@@ -35,20 +39,21 @@ const getAccessToken = async (): Promise<string | null> => {
   }
 
   try {
+    // Use Basic Auth for better compatibility with Spotify API standards
+    const basicAuth = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
+    
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${basicAuth}`
       },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-      }),
+      body: 'grant_type=client_credentials'
     });
 
     if (!response.ok) {
-      throw new Error(`Spotify Token Error: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Spotify Token Error ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
@@ -78,7 +83,7 @@ export const searchSongs = async (query: string): Promise<Song[]> => {
     );
     
     if (!response.ok) {
-      throw new Error("Spotify API response not ok");
+      throw new Error(`Spotify Search Error: ${response.status}`);
     }
 
     const data = await response.json();
