@@ -16,8 +16,8 @@ export const resolveSongMetadata = async (
     model: 'gemini-3-flash-preview',
     contents: `
       Identify the following songs and return them in a structured JSON format.
-      For each song, provide the correct Title, Artist, and a link to Apple Music or a generic search link.
-      Use the key 'externalUrl' for the link.
+      For each song, provide the correct Title, Artist, and a link to the song on Spotify.
+      Use the key 'externalUrl' for the Spotify link.
 
       1. Current Song: "${formatInput(rawCurrent)}"
       2. Favorite Song: "${formatInput(rawFavorite)}"
@@ -94,7 +94,7 @@ export const generateRoomVibe = async (entries: SongEntry[]): Promise<RoomVibe> 
 
       Determine a creative "Vibe Name" and a short description.
       Recommend 5 songs that fit this vibe.
-      For each recommendation, explain the reason and provide an Apple Music or generic music URL (key: 'externalUrl').
+      For each recommendation, explain the reason and provide a Spotify URL (key: 'externalUrl').
     `,
     config: {
       responseMimeType: 'application/json',

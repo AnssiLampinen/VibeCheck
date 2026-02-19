@@ -1,69 +1,78 @@
 import { Song } from '../types';
 import { MOCK_SONGS } from '../data/mockSongs';
 
+let cachedToken: string | null = null;
+let tokenExpiration: number = 0;
+
+const getSpotifyToken = async (): Promise<string | null> => {
+  // If we have a valid cached token, use it
+  if (cachedToken && Date.now() < tokenExpiration) {
+    return cachedToken;
+  }
+
+  try {
+    // Call our own serverless function
+    const response = await fetch('/api/token');
+    
+    if (!response.ok) {
+      throw new Error(`Backend token fetch failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.access_token) {
+      cachedToken = data.access_token;
+      // Expires in is usually 3600 seconds. Subtract a 60s buffer.
+      tokenExpiration = Date.now() + (data.expires_in * 1000) - 60000;
+      return cachedToken;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching Spotify token:", error);
+    return null;
+  }
+};
+
 export const searchSongs = async (query: string): Promise<Song[]> => {
   if (!query || query.length < 2) return [];
 
-  // Helper to process iTunes results
-  const mapResults = (data: any) => {
-    if (data.results) {
-      return data.results.map((track: any) => ({
-        title: track.trackName,
-        artist: track.artistName,
-        externalUrl: track.trackViewUrl || track.collectionViewUrl
+  try {
+    const token = await getSpotifyToken();
+
+    if (!token) {
+      throw new Error("No access token available. Check API keys.");
+    }
+
+    const response = await fetch(
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Spotify Search API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.tracks && data.tracks.items) {
+      return data.tracks.items.map((track: any) => ({
+        title: track.name,
+        artist: track.artists.map((a: any) => a.name).join(', '),
+        externalUrl: track.external_urls.spotify
       }));
     }
     return [];
-  };
 
-  // Helper to return mocks
-  const getMocks = () => {
-     const lowerQuery = query.toLowerCase();
-     return MOCK_SONGS.filter(s => 
-       s.title.toLowerCase().includes(lowerQuery) || 
-       s.artist.toLowerCase().includes(lowerQuery)
-     ).slice(0, 5);
-  };
-
-  const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=5`;
-
-  try {
-    // 1. Try Direct Fetch
-    // Note: iTunes usually supports CORS, but strict browser/network policies might block it.
-    const response = await fetch(itunesUrl);
-    
-    if (!response.ok) {
-      throw new Error(`Direct iTunes fetch failed: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return mapResults(data);
-
-  } catch (directError) {
-    console.warn("Direct iTunes search failed, attempting proxy fallback...", directError);
-    
-    try {
-      // 2. Try via AllOrigins Proxy
-      // using 'get' wrapper which returns JSON with a 'contents' string property
-      // This is often more robust against CORS than raw piping on some networks
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(itunesUrl)}`;
-      const response = await fetch(proxyUrl);
-      
-      if (!response.ok) {
-        throw new Error(`Proxy fetch failed: ${response.status}`);
-      }
-      
-      const proxyWrapper = await response.json();
-      if (!proxyWrapper.contents) {
-        throw new Error("Proxy response empty");
-      }
-
-      const data = JSON.parse(proxyWrapper.contents);
-      return mapResults(data);
-
-    } catch (proxyError) {
-      console.error("iTunes Proxy search failed, falling back to mocks.", proxyError);
-      return getMocks();
-    }
+  } catch (e) {
+    console.error("Spotify Search failed, falling back to mocks", e);
+    const lowerQuery = query.toLowerCase();
+    return MOCK_SONGS.filter(s => 
+      s.title.toLowerCase().includes(lowerQuery) || 
+      s.artist.toLowerCase().includes(lowerQuery)
+    ).slice(0, 5);
   }
 };

@@ -24,8 +24,8 @@ export const SongForm: React.FC<SongFormProps> = ({ onSubmit, roomId, roomName }
     return {
       title: input,
       artist: 'Unknown Artist',
-      // Create a generic iTunes search URL since we don't have a specific link
-      externalUrl: `https://music.apple.com/us/search?term=${encodeURIComponent(input)}`
+      // Create a generic Spotify search URL since we don't have a specific link
+      externalUrl: `https://open.spotify.com/search/${encodeURIComponent(input)}`
     };
   };
 
